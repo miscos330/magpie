@@ -17,9 +17,20 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
+// setHermesTestHome makes home the test's own, with the LOCALAPPDATA under
+// it: on Windows Hermes's default folder is %LOCALAPPDATA%\hermes, not one
+// under HOME, so with HOME alone every test in the binary read and wrote
+// the same Hermes folder, and the profiles one test made were listed in
+// the next.
+func setHermesTestHome(t *testing.T, home string) {
+	t.Helper()
+	t.Setenv("HOME", home)
+	t.Setenv("LOCALAPPDATA", filepath.Join(home, "AppData", "Local"))
+}
+
 func TestHermes(t *testing.T) {
 	home := t.TempDir()
-	t.Setenv("HOME", home)
+	setHermesTestHome(t, home)
 	t.Setenv("USERPROFILE", home)
 	t.Setenv("HERMES_HOME", "")
 	t.Setenv("XDG_CONFIG_HOME", filepath.Join(home, ".config"))
@@ -137,7 +148,7 @@ func TestHermes(t *testing.T) {
 // bot had magpie).
 func TestHermesProfiles(t *testing.T) {
 	home := t.TempDir()
-	t.Setenv("HOME", home)
+	setHermesTestHome(t, home)
 	t.Setenv("USERPROFILE", home)
 	t.Setenv("HERMES_HOME", "")
 	t.Setenv("XDG_CONFIG_HOME", filepath.Join(home, ".config"))
@@ -224,7 +235,7 @@ func TestHermesProfiles(t *testing.T) {
 // provider too
 func TestHermesProfilesOfCustomRoot(t *testing.T) {
 	home := t.TempDir()
-	t.Setenv("HOME", home)
+	setHermesTestHome(t, home)
 	t.Setenv("USERPROFILE", home)
 	t.Setenv("XDG_CONFIG_HOME", filepath.Join(home, ".config"))
 	t.Setenv("XDG_CACHE_HOME", filepath.Join(home, ".cache"))
@@ -289,7 +300,7 @@ func TestHermesFolder(t *testing.T) {
 // mode and model list stay magpie's.
 func TestHermesKeepsTheUsersSettings(t *testing.T) {
 	home := t.TempDir()
-	t.Setenv("HOME", home)
+	setHermesTestHome(t, home)
 	t.Setenv("USERPROFILE", home)
 	t.Setenv("HERMES_HOME", "")
 	t.Setenv("XDG_CONFIG_HOME", filepath.Join(home, ".config"))
@@ -372,7 +383,7 @@ func TestHermesKeepsTheUsersSettings(t *testing.T) {
 // still is drift.
 func TestHermesWithAGatewayKeyOfTheUsers(t *testing.T) {
 	home := t.TempDir()
-	t.Setenv("HOME", home)
+	setHermesTestHome(t, home)
 	t.Setenv("USERPROFILE", home)
 	t.Setenv("HERMES_HOME", "")
 	t.Setenv("XDG_CONFIG_HOME", filepath.Join(home, ".config"))
@@ -429,7 +440,7 @@ func TestHermesWithAGatewayKeyOfTheUsers(t *testing.T) {
 // is drift, and a sync puts magpie's key into the .env, the reference kept.
 func TestHermesWithAKeyInItsEnvFile(t *testing.T) {
 	home := t.TempDir()
-	t.Setenv("HOME", home)
+	setHermesTestHome(t, home)
 	t.Setenv("USERPROFILE", home)
 	t.Setenv("HERMES_HOME", "")
 	t.Setenv("XDG_CONFIG_HOME", filepath.Join(home, ".config"))
@@ -537,7 +548,7 @@ func TestHermesWithAKeyInItsEnvFile(t *testing.T) {
 // value, and one the gateway doesn't take doesn't.
 func TestKeyHoldsTakesAGatewayKey(t *testing.T) {
 	home := t.TempDir()
-	t.Setenv("HOME", home)
+	setHermesTestHome(t, home)
 	t.Setenv("USERPROFILE", home)
 	t.Setenv("XDG_CONFIG_HOME", filepath.Join(home, ".config"))
 	secret, err := access.Update("add-key", access.Change{Name: "mine"})
@@ -572,7 +583,7 @@ func TestKeyHoldsTakesAGatewayKey(t *testing.T) {
 // the old model).
 func TestHermesProfilesFollowMagpieModel(t *testing.T) {
 	home := t.TempDir()
-	t.Setenv("HOME", home)
+	setHermesTestHome(t, home)
 	t.Setenv("USERPROFILE", home)
 	t.Setenv("HERMES_HOME", "")
 	t.Setenv("XDG_CONFIG_HOME", filepath.Join(home, ".config"))
@@ -657,7 +668,7 @@ func TestHermesProfilesFollowMagpieModel(t *testing.T) {
 // and a bot an older magpie left with no model gets magpie's.
 func TestHermesOffAndOnKeepsEveryBotsModel(t *testing.T) {
 	home := t.TempDir()
-	t.Setenv("HOME", home)
+	setHermesTestHome(t, home)
 	t.Setenv("USERPROFILE", home)
 	t.Setenv("HERMES_HOME", "")
 	t.Setenv("XDG_CONFIG_HOME", filepath.Join(home, ".config"))
@@ -743,7 +754,7 @@ func TestHermesOffAndOnKeepsEveryBotsModel(t *testing.T) {
 // take).
 func TestHermesBotsFollowTheModelHermesPicked(t *testing.T) {
 	home := t.TempDir()
-	t.Setenv("HOME", home)
+	setHermesTestHome(t, home)
 	t.Setenv("USERPROFILE", home)
 	t.Setenv("HERMES_HOME", "")
 	t.Setenv("XDG_CONFIG_HOME", filepath.Join(home, ".config"))
@@ -781,7 +792,7 @@ func TestHermesBotsFollowTheModelHermesPicked(t *testing.T) {
 // Hermes's, and a HERMES_HOME naming a profile, leave it as before.
 func TestHermesStickyProfile(t *testing.T) {
 	home := t.TempDir()
-	t.Setenv("HOME", home)
+	setHermesTestHome(t, home)
 	t.Setenv("USERPROFILE", home)
 	t.Setenv("HERMES_HOME", "")
 	t.Setenv("XDG_CONFIG_HOME", filepath.Join(home, ".config"))
@@ -851,7 +862,7 @@ func TestHermesStickyProfile(t *testing.T) {
 // it has. With the root's profile only, there is no such picker.
 func TestHermesProfileModels(t *testing.T) {
 	home := t.TempDir()
-	t.Setenv("HOME", home)
+	setHermesTestHome(t, home)
 	t.Setenv("USERPROFILE", home)
 	t.Setenv("HERMES_HOME", "")
 	t.Setenv("XDG_CONFIG_HOME", filepath.Join(home, ".config"))
@@ -1012,7 +1023,7 @@ func TestHermesProfileModels(t *testing.T) {
 // row is the profile's model picker, and none is listed with Hermes gone.
 func TestHermesProfilesAreAgents(t *testing.T) {
 	home := t.TempDir()
-	t.Setenv("HOME", home)
+	setHermesTestHome(t, home)
 	t.Setenv("USERPROFILE", home)
 	t.Setenv("HERMES_HOME", "")
 	t.Setenv("XDG_CONFIG_HOME", filepath.Join(home, ".config"))
@@ -1066,7 +1077,7 @@ func TestHermesProfilesAreAgents(t *testing.T) {
 // the way Hermes's slugifyProfileName made it. Ids are the reporter's own.
 func TestHermesProfileRowsReadAsNames(t *testing.T) {
 	home := t.TempDir()
-	t.Setenv("HOME", home)
+	setHermesTestHome(t, home)
 	t.Setenv("USERPROFILE", home)
 	t.Setenv("HERMES_HOME", "")
 	t.Setenv("XDG_CONFIG_HOME", filepath.Join(home, ".config"))
@@ -1116,7 +1127,7 @@ func TestHermesProfileRowsReadAsNames(t *testing.T) {
 // still reach one by its id.
 func TestHermesProfilesAreNotListedAsAgents(t *testing.T) {
 	home := t.TempDir()
-	t.Setenv("HOME", home)
+	setHermesTestHome(t, home)
 	t.Setenv("USERPROFILE", home)
 	t.Setenv("HERMES_HOME", "")
 	t.Setenv("XDG_CONFIG_HOME", filepath.Join(home, ".config"))
