@@ -196,25 +196,35 @@ type codexStoreSetting struct {
 // isn't known.
 func readCodexStoreSetting(home string) (codexStoreSetting, error) {
 	path := filepath.Join(home, "config.toml")
-	s, err := filememo.Read("codex credential store", path, func(b []byte) (codexStoreSetting, error) {
+	// what the file says: the default goes on after, so the read kept for
+	// an unchanged file holds no default of its own
+	type said struct {
+		mode    string
+		secrets *bool
+	}
+	f, err := filememo.Read("codex credential store", path, func(b []byte) (said, error) {
 		var c struct {
 			Store    string         `toml:"cli_auth_credentials_store"`
 			Features map[string]any `toml:"features"`
 		}
 		if err := toml.Unmarshal(edit.TOMLWithout(b, "projects"), &c); err != nil {
-			return codexStoreSetting{}, fmt.Errorf("%s doesn't read as TOML", path)
+			return said{}, fmt.Errorf("%s doesn't read as TOML", path)
 		}
-		s := codexStoreSetting{Mode: c.Store, Secrets: secretAuthStorageDefault}
+		f := said{mode: c.Store}
 		if v, ok := c.Features["secret_auth_storage"].(bool); ok {
-			s.Secrets = v
+			f.secrets = &v
 		}
-		return s, nil
+		return f, nil
 	})
 	if errors.Is(err, fs.ErrNotExist) {
 		return codexStoreSetting{Mode: "file", Secrets: secretAuthStorageDefault}, nil
 	}
 	if err != nil {
 		return codexStoreSetting{}, err
+	}
+	s := codexStoreSetting{Mode: f.mode, Secrets: secretAuthStorageDefault}
+	if f.secrets != nil {
+		s.Secrets = *f.secrets
 	}
 	switch s.Mode {
 	case "":
@@ -697,13 +707,16 @@ func CodexSignInKnown(dir string) (b []byte, ok, known bool) {
 }
 
 // CodexKeychainForTest has Codex's keychain item read through find (no
-// item: fs.ErrNotExist) on every system, until restore.
+// item: fs.ErrNotExist) on every system, until restore. It is the macOS
+// path there too, so secret_auth_storage is off by default as on a Mac:
+// with Windows's default on, keyring and auto never meant the item, and
+// the keychain tests were red on Windows.
 func CodexKeychainForTest(find func(service, account string) ([]byte, error)) (restore func()) {
-	old, oldHere := codexKeychain, codexKeychainHere
-	codexKeychain, codexKeychainHere = findOnly(find), true
+	old, oldHere, oldSecrets := codexKeychain, codexKeychainHere, secretAuthStorageDefault
+	codexKeychain, codexKeychainHere, secretAuthStorageDefault = findOnly(find), true, false
 	resetCodexKeychain()
 	return func() {
-		codexKeychain, codexKeychainHere = old, oldHere
+		codexKeychain, codexKeychainHere, secretAuthStorageDefault = old, oldHere, oldSecrets
 		resetCodexKeychain()
 	}
 }
