@@ -283,10 +283,10 @@ func TestNativeClaudePlugins(t *testing.T) {
   "version": 2,
   "plugins": {
     "fixture@fixmarket": [
-      {"scope": "user", "installPath": "`+inst+`", "version": "0.1.0", "installedAt": "2026-11-20T02:39:31.789Z"},
-      {"scope": "project", "installPath": "`+inst+`", "version": "0.1.0", "projectPath": "`+proj+`"}
+      {"scope": "user", "installPath": `+mustJSON(t, inst)+`, "version": "0.1.0", "installedAt": "2026-11-20T02:39:31.789Z"},
+      {"scope": "project", "installPath": `+mustJSON(t, inst)+`, "version": "0.1.0", "projectPath": `+mustJSON(t, proj)+`}
     ],
-    "gone@fixmarket": [{"scope": "user", "installPath": "`+filepath.Join(cc, "nowhere")+`", "version": "1.0.0"}]
+    "gone@fixmarket": [{"scope": "user", "installPath": `+mustJSON(t, filepath.Join(cc, "nowhere"))+`, "version": "1.0.0"}]
   }
 }`)
 	write(t, filepath.Join(cc, "settings.json"), `{"enabledPlugins": {"fixture@fixmarket": true}}`)
