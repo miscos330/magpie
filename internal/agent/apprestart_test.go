@@ -66,6 +66,14 @@ func macApp(t *testing.T, dir, name, id, exe string) string {
 	return b
 }
 
+// inBundle is rel, a slash path, inside the app bundle at bundle, spelled
+// as the code builds it with filepath.Join: on a Windows host running these
+// Mac cases the bundle is a Windows path, and a fake process line made with
+// "/" never matched the pattern the code asked for.
+func inBundle(bundle, rel string) string {
+	return filepath.Join(bundle, filepath.FromSlash(rel))
+}
+
 // WorkBuddy on a Mac: its row offers a Restart only while WorkBuddy.app
 // runs on a models.json older than magpie's last write of it, and the
 // Restart quits it as ⌘Q does, waits for it to end, and opens it again.
@@ -83,8 +91,8 @@ func TestWorkBuddyRestartOnMac(t *testing.T) {
 	running = func(pat string) []runningProc {
 		pats = append(pats, pat)
 		ps := []runningProc{
-			{up, bundle + "/Contents/MacOS/Electron"},
-			{up, bundle + "/Contents/Frameworks/WorkBuddy Helper.app/Contents/MacOS/WorkBuddy Helper --type=gpu-process"},
+			{up, inBundle(bundle, "Contents/MacOS/Electron")},
+			{up, inBundle(bundle, "Contents/Frameworks/WorkBuddy Helper.app/Contents/MacOS/WorkBuddy Helper --type=gpu-process")},
 		}
 		var out []runningProc
 		for _, p := range ps {
@@ -109,7 +117,9 @@ func TestWorkBuddyRestartOnMac(t *testing.T) {
 	if d := time.Since(got.Since); d < 59*time.Minute || d > 61*time.Minute {
 		t.Fatalf("since %v ago", d)
 	}
-	if !slices.ContainsFunc(pats, func(p string) bool { return strings.Contains(p, `WorkBuddy\.app/Contents/MacOS/Electron`) }) {
+	if !slices.ContainsFunc(pats, func(p string) bool {
+		return strings.Contains(p, regexp.QuoteMeta(inBundle(bundle, "Contents/MacOS/Electron")))
+	}) {
 		t.Fatalf("not asked by the bundle's executable: %q", pats)
 	}
 
@@ -388,7 +398,7 @@ func TestWorkBuddyOwnSaveAfterStartIsNoChange(t *testing.T) {
 				restartOnMac = true
 				appFolders = func() []string { return []string{apps} }
 				running = func(pat string) []runningProc {
-					p := runningProc{time.Since(start), bundle + "/Contents/MacOS/Electron"}
+					p := runningProc{time.Since(start), inBundle(bundle, "Contents/MacOS/Electron")}
 					if regexp.MustCompile(pat).MatchString(p.cmd) {
 						return []runningProc{p}
 					}
@@ -482,21 +492,21 @@ func TestWorkBuddySidecarOutlivesQuitOnMac(t *testing.T) {
 			bundle := macApp(t, apps, b.name, b.bundleID, "Electron")
 			restartOnMac = true
 			appFolders = func() []string { return []string{apps} }
-			exe := bundle + "/Contents/MacOS/Electron"
+			exe := inBundle(bundle, "Contents/MacOS/Electron")
 			alive, up := true, time.Hour
 			running = func(pat string) []runningProc {
 				// the sidecar, started two hours ago by an earlier
 				// WorkBuddy, and the daemon the app runs beside itself
 				// and a CLI it keeps warm, a script with no extension
 				ps := []runningProc{
-					{2 * time.Hour, exe + " " + bundle + "/Contents/Resources/app.asar/main/sidecar-entry.js --token 4f1c --control-pipe-uuid 9a7e"},
-					{2 * time.Hour, exe + " " + bundle + "/Contents/Resources/app.asar.unpacked/cli/bin/codebuddy --prewarm --prewarm-id wb-pool-1762300000000-a1b2c3"},
+					{2 * time.Hour, exe + " " + inBundle(bundle, "Contents/Resources/app.asar/main/sidecar-entry.js --token 4f1c --control-pipe-uuid 9a7e")},
+					{2 * time.Hour, exe + " " + inBundle(bundle, "Contents/Resources/app.asar.unpacked/cli/bin/codebuddy --prewarm --prewarm-id wb-pool-1762300000000-a1b2c3")},
 				}
 				if alive {
 					ps = append(ps,
 						runningProc{up, exe},
-						runningProc{up, exe + " --disable-warning=ExperimentalWarning " + bundle + "/Contents/Resources/app.asar/main/daemon-app-server-entry.js --stdio"},
-						runningProc{up, bundle + "/Contents/Frameworks/WorkBuddy Helper (Renderer).app/Contents/MacOS/WorkBuddy Helper (Renderer) --type=renderer"})
+						runningProc{up, exe + " --disable-warning=ExperimentalWarning " + inBundle(bundle, "Contents/Resources/app.asar/main/daemon-app-server-entry.js --stdio")},
+						runningProc{up, inBundle(bundle, "Contents/Frameworks/WorkBuddy Helper (Renderer).app/Contents/MacOS/WorkBuddy Helper (Renderer) --type=renderer")})
 				}
 				var out []runningProc
 				for _, p := range ps {

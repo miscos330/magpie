@@ -557,10 +557,10 @@ func TestOpenMausBotRestartOnMac(t *testing.T) {
 	alive, up := false, time.Hour
 	running = func(pat string) []runningProc {
 		ps := []runningProc{
-			{up, bundle + "/Contents/MacOS/OpenMausBot"},
-			{up, bundle + "/Contents/Frameworks/OpenMausBot Helper (Renderer).app/Contents/MacOS/OpenMausBot Helper (Renderer) --type=renderer"},
+			{up, inBundle(bundle, "Contents/MacOS/OpenMausBot")},
+			{up, inBundle(bundle, "Contents/Frameworks/OpenMausBot Helper (Renderer).app/Contents/MacOS/OpenMausBot Helper (Renderer) --type=renderer")},
 			// its server, a script on the app's own executable
-			{0, bundle + "/Contents/MacOS/OpenMausBot " + bundle + "/Contents/Resources/server/index.js"},
+			{0, inBundle(bundle, "Contents/MacOS/OpenMausBot ") + inBundle(bundle, "Contents/Resources/server/index.js")},
 		}
 		var out []runningProc
 		for _, p := range ps {
