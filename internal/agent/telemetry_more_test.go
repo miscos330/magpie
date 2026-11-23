@@ -2,6 +2,7 @@ package agent
 
 import (
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -12,25 +13,36 @@ import (
 // Each of these has its own switch in its own config, from its source.
 var moreTelemetry = []struct {
 	name, file, before, off string
-	of                      func(home string) *Agent
-	keys                    []string
+	// winFile is the file on Windows when it isn't file (Crush's and
+	// Goose's are under %LOCALAPPDATA% and %APPDATA% there)
+	winFile string
+	of      func(home string) *Agent
+	keys    []string
 	// theirs keeps telemetry on in the user's own words
 	theirs string
 	// own already turns it off
 	own string
 }{
-	{"crush", ".config/crush/crush.json", `{"options": {"context_paths": ["x"]}}`, `"disable_metrics": true`,
+	{"crush", ".config/crush/crush.json", `{"options": {"context_paths": ["x"]}}`, `"disable_metrics": true`, "AppData/Local/crush/crush.json",
 		func(h string) *Agent { return crush(h, filepath.Join(h, ".config")) }, []string{"options.disable_metrics"},
 		`{"options": {"disable_metrics": false}}`, `{"options": {"disable_metrics": true}}`},
-	{"kimi", ".kimi-code/config.toml", "default_model = \"a\"\n\n[providers.x]\nbase_url = \"u\"\n", "telemetry = false",
+	{"kimi", ".kimi-code/config.toml", "default_model = \"a\"\n\n[providers.x]\nbase_url = \"u\"\n", "telemetry = false", "",
 		kimi, []string{"telemetry"}, "telemetry = true\n", "telemetry = false\n"},
-	{"goose", ".config/goose/config.yaml", "GOOSE_MODE: auto\n", "GOOSE_TELEMETRY_ENABLED: false",
+	{"goose", ".config/goose/config.yaml", "GOOSE_MODE: auto\n", "GOOSE_TELEMETRY_ENABLED: false", "AppData/Roaming/Block/goose/config/config.yaml",
 		func(h string) *Agent { return goose(h, filepath.Join(h, ".config")) }, []string{"GOOSE_TELEMETRY_ENABLED"},
 		"GOOSE_TELEMETRY_ENABLED: true\n", "GOOSE_TELEMETRY_ENABLED: false\n"},
-	{"pi", ".pi/agent/settings.json", `{"theme": "dark"}`, `"enableInstallTelemetry": false`,
+	{"pi", ".pi/agent/settings.json", `{"theme": "dark"}`, `"enableInstallTelemetry": false`, "",
 		pi, []string{"enableInstallTelemetry"}, `{"enableInstallTelemetry": true}`, `{"enableInstallTelemetry": false}`},
-	{"cline", ".cline/data/settings/global-settings.json", `{"autoUpdateEnabled": true}`, `"telemetryOptOut": true`,
+	{"cline", ".cline/data/settings/global-settings.json", `{"autoUpdateEnabled": true}`, `"telemetryOptOut": true`, "",
 		cline, []string{"telemetryOptOut"}, `{"telemetryOptOut": false}`, `{"telemetryOptOut": true}`},
+}
+
+// moreTelemetryFile is the file of a moreTelemetry case on this OS
+func moreTelemetryFile(file, winFile string) string {
+	if runtime.GOOS == "windows" && winFile != "" {
+		return winFile
+	}
+	return file
 }
 
 // has: the file says off, however it spaces it
@@ -42,7 +54,7 @@ func has(body, off string) bool {
 func TestMoreAgentsTelemetrySwitch(t *testing.T) {
 	for _, c := range moreTelemetry {
 		t.Run(c.name, func(t *testing.T) {
-			home, path := telemetryHome(t, c.file, c.before)
+			home, path := telemetryHome(t, moreTelemetryFile(c.file, c.winFile), c.before)
 			a := c.of(home)
 			if st := telemetryOf(t, a); st.Off || len(st.Own) != 0 || strings.Join(st.Keys, ",") != strings.Join(c.keys, ",") {
 				t.Fatalf("before: %+v", st)
@@ -75,14 +87,14 @@ func TestMoreAgentsTelemetrySwitch(t *testing.T) {
 func TestMoreAgentsTelemetryLeavesTheUsers(t *testing.T) {
 	for _, c := range moreTelemetry {
 		t.Run(c.name, func(t *testing.T) {
-			home, path := telemetryHome(t, c.file, c.theirs)
+			home, path := telemetryHome(t, moreTelemetryFile(c.file, c.winFile), c.theirs)
 			if err := c.of(home).SetTelemetry(true); err == nil {
 				t.Fatal("the user's on was written over")
 			}
 			if readFile(path) != c.theirs {
 				t.Fatalf("written:\n%s", readFile(path))
 			}
-			home, path = telemetryHome(t, c.file, c.own)
+			home, path = telemetryHome(t, moreTelemetryFile(c.file, c.winFile), c.own)
 			a := c.of(home)
 			if st := telemetryOf(t, a); !st.Off || len(st.Own) != 1 {
 				t.Fatalf("their own off: %+v", st)
@@ -105,7 +117,7 @@ func TestMoreAgentsTelemetryUnreadable(t *testing.T) {
 	bad := map[string]string{"crush": `{"options": `, "kimi": "[providers\ntelemetry = ", "goose": "a: [\n  b: {", "pi": `{"x": [`, "cline": `{`}
 	for _, c := range moreTelemetry {
 		t.Run(c.name, func(t *testing.T) {
-			home, path := telemetryHome(t, c.file, bad[c.name])
+			home, path := telemetryHome(t, moreTelemetryFile(c.file, c.winFile), bad[c.name])
 			a := c.of(home)
 			if _, err := a.Telemetry.Get(); err == nil {
 				t.Fatal("an unreadable config read as a state")

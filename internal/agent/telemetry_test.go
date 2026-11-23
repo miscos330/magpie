@@ -21,6 +21,10 @@ func telemetryHome(t *testing.T, file, body string) (home, path string) {
 	t.Setenv("XDG_CONFIG_HOME", filepath.Join(home, ".config"))
 	t.Setenv("XDG_CACHE_HOME", filepath.Join(home, ".cache"))
 	t.Setenv("XDG_DATA_HOME", filepath.Join(home, ".local", "share"))
+	// on Windows Crush's config is under %LOCALAPPDATA% and Goose's under
+	// %APPDATA%, not the XDG folders: the test's own, under its home
+	t.Setenv("APPDATA", filepath.Join(home, "AppData", "Roaming"))
+	t.Setenv("LOCALAPPDATA", filepath.Join(home, "AppData", "Local"))
 	t.Setenv("CODEX_HOME", "")
 	t.Setenv("CLAUDE_CONFIG_DIR", "")
 	t.Setenv("QWEN_HOME", "")
