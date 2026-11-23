@@ -221,8 +221,18 @@ func storePackages() []string {
 
 // windowsRegisteredApp is the folder and version an installer registered
 // the app with guid under on Windows (registeredIn), "" elsewhere or when
-// none is; a var so tests never read the machine's own registry.
-var windowsRegisteredApp = registeredWindowsApp
+// none is; a var so a test can give its own. In a test binary testenv
+// isolated it is none, as windowsStorePackages: only agent's own TestMain
+// stood in for it, so on a Windows box with Antigravity's app installed the
+// cli tests found it and gave a project's skills to antigravity too (#7119).
+var windowsRegisteredApp = machineRegisteredApp
+
+func machineRegisteredApp(guid string) (dir, version string) {
+	if proc.Isolated() {
+		return "", ""
+	}
+	return registeredWindowsApp(guid)
+}
 
 // registryRead is a string value of a key under a Windows registry hive
 // ("HKCU" or "HKLM"), "" when there is none.

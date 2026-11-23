@@ -194,3 +194,19 @@ func TestStorePackagesNotTheMachinesInTests(t *testing.T) {
 		t.Fatalf("a test read this machine's Store packages: %d of them, %v", len(got), got[:min(len(got), 3)])
 	}
 }
+
+// The same for what an installer registered: on a Windows box with
+// Antigravity's app, the cli tests found it in HKCU (#7119).
+func TestRegisteredAppsNotTheMachinesInTests(t *testing.T) {
+	if !proc.Isolated() {
+		t.Fatal("agent's tests run outside testenv's home")
+	}
+	for id, app := range desktopApps {
+		if app.guid == "" {
+			continue
+		}
+		if dir, version := machineRegisteredApp(app.guid); dir != "" || version != "" {
+			t.Errorf("a test read this machine's registry for %s: %q %q", id, dir, version)
+		}
+	}
+}
