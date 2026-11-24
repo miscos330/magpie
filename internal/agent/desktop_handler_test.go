@@ -11,6 +11,7 @@ import (
 // a blank Chrome page opened instead of Cindy. The handler is only
 // found when its entry and the entry's program are there.
 func TestDesktopHandlerNeedsItsEntryAndProgram(t *testing.T) {
+	linuxDesktopEntryTest(t)
 	home, sys := t.TempDir(), t.TempDir()
 	prog := filepath.Join(t.TempDir(), "Cindy.AppImage")
 	if err := os.WriteFile(prog, []byte("#!/bin/sh\n"), 0o755); err != nil {

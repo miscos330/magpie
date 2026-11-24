@@ -9,6 +9,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"reflect"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -248,6 +249,7 @@ func loopbackHost(h string) bool {
 // the ones Lody 0.108.1 writes: its AppImage's, with the path quoted and
 // --no-sandbox kept, and its .deb's.
 func TestOpenLodyRunsItsDesktopEntry(t *testing.T) {
+	linuxDesktopEntryTest(t)
 	home := t.TempDir()
 	t.Setenv("HOME", home)
 	data := filepath.Join(home, "data")
@@ -347,7 +349,22 @@ func TestOpenLodyRunsItsDesktopEntry(t *testing.T) {
 	}
 }
 
+// linuxDesktopEntryTest skips a test of reading Linux desktop entries on a
+// Windows host. That code never runs there (lodyCommand returns early on
+// Windows, desktopHandler is built for other systems only), and an entry
+// can't hold a Windows program: Exec reads a backslash as an escape, a
+// program needs its exec bit, and the AppImage names the tests use have
+// characters Windows won't put in a file name. As for
+// TestDshLinuxDesktopEntry (#5617).
+func linuxDesktopEntryTest(t *testing.T) {
+	t.Helper()
+	if runtime.GOOS == "windows" {
+		t.Skip("a Linux desktop entry's program can't be found on a Windows host")
+	}
+}
+
 func TestDesktopExec(t *testing.T) {
+	linuxDesktopEntryTest(t)
 	sh := "/bin/sh"
 	for _, c := range []struct {
 		entry string
