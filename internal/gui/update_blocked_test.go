@@ -49,6 +49,23 @@ func TestUpdateThatWontStart(t *testing.T) {
 	self, _ := os.Stat(exe)
 	staged := exe + ".new"
 	os.WriteFile(staged, body, 0o755)
+	if runtime.GOOS == "windows" {
+		// Windows tries a download before putting it in, started suspended
+		// and ended at once (update.InstallBinaryAside), and a refusal there
+		// stops the update before the restart this test is about. A program
+		// Windows starts gets past that try: this test's own.
+		self, err := os.Executable()
+		if err != nil {
+			t.Fatal(err)
+		}
+		b, err := os.ReadFile(self)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(staged, b, 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
 
 	o := updates
 	u := &updater{exe: exe, self: self, staged: staged, state: "ready", latest: &update.Release{Version: "0.1.11"}}
